@@ -102,28 +102,64 @@ def generate_chart():
 @app.route('/predict-chart', methods=['POST'])
 def predict_chart():
     # Load predictive analysis data
-    pred_df = pd.read_csv('youtube_predictions.csv')  # Update with your file if different
+    pred_df = pd.read_csv('youtube_predictions.csv')
 
     # Get data from the request
     data = request.get_json()
     visualization_type = data['visualizationType']
     graph_type = data['graphType']
 
+    # Debugging print to check received data
+    print(f"Received visualization_type: {visualization_type}, graph_type: {graph_type}")
+
+    # Helper function to scale large numbers for easier visualization
+    def scale_values(values):
+        scaled_values = []
+        for val in values:
+            if val >= 1_000_000_000:  # Convert billions
+                scaled_values.append(val / 1_000_000_000)
+            elif val >= 1_000_000:  # Convert millions
+                scaled_values.append(val / 1_000_000)
+            elif val >= 1_000:  # Convert thousands
+                scaled_values.append(val / 1_000)
+            else:
+                scaled_values.append(val)
+        return scaled_values
+
+    # Initialize y_data variable
+    y_data = None
+
     # Map visualization type to correct row in predictive analysis data
-    if visualization_type == 'views_prediction':
-        y_data = pred_df.loc[pred_df['Unnamed: 0'] == 'Views'].values.flatten()[1:]
-        y_label = "Views"
+    if visualization_type == 'subscriber_gain_prediction':
+        y_data = pred_df.loc[pred_df['Metric'] == 'Subscriber Gain'].values.flatten()[1:]
+        y_label = "Subscriber Gain (millions)"
+        title = 'Subscriber Gain Prediction'
+    elif visualization_type == 'views_prediction':
+        y_data = pred_df.loc[pred_df['Metric'] == 'Total Views'].values.flatten()[1:]
+        y_label = "Total Views (billions)"
         title = 'Views Prediction'
+    elif visualization_type == 'engagement_rate_prediction':
+        y_data = pred_df.loc[pred_df['Metric'] == 'Engagement Rate (%)'].values.flatten()[1:]
+        y_label = "Engagement Rate (%)"
+        title = 'Engagement Rate Prediction'
     elif visualization_type == 'like_count_prediction':
-        y_data = pred_df.loc[pred_df['Unnamed: 0'] == 'likeCount'].values.flatten()[1:]
-        y_label = "Like Count"
+        y_data = pred_df.loc[pred_df['Metric'] == 'Average Likes per Video'].values.flatten()[1:]
+        y_label = "Average Likes per Video (millions)"
         title = 'Like Count Prediction'
     elif visualization_type == 'comment_count_prediction':
-        y_data = pred_df.loc[pred_df['Unnamed: 0'] == 'commentCount'].values.flatten()[1:]
-        y_label = "Comment Count"
+        y_data = pred_df.loc[pred_df['Metric'] == 'Comments per Video'].values.flatten()[1:]
+        y_label = "Comments per Video (thousands)"
         title = 'Comment Count Prediction'
+    
+    # Check if y_data is set
+    if y_data is None:
+        return jsonify({"error": "Invalid visualization type"}), 400
 
-    years = ['2023', '2025', '2030']  # Adjust as needed
+    # Scale the y_data values
+    y_data = scale_values(y_data)
+
+    # Update year labels based on data
+    years = ['2023', '2025', '2030']
 
     # Create the plot
     if graph_type == 'pie':
@@ -152,6 +188,7 @@ def predict_chart():
 
     # Return the image as response
     return send_file(img, mimetype='image/png')
+
 
 if __name__ == '__main__':
     app.run(debug=True)
