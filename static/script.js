@@ -54,7 +54,6 @@ function loadDashboardContent() {
                     <option value="">--Choose an option--</option>
                     <option value="views">Views Over Time</option>
                     <option value="likes_vs_comments">Likes vs Comments</option>
-                    <option value="engagement">Engagement Over Time</option>
                     <option value="duration">Video Duration</option>
                 </select>
             </div>
@@ -88,7 +87,7 @@ function loadDashboardContent() {
             Submit
         </button>
         <div class="graphDiv">
-            <img src="" alt="Image will be loaded below" class="graph">
+            <img src="static/loading.gif" alt="Image will be loaded below" class="graph">
         </div>
     `;
     document.getElementById('content').innerHTML = content;
@@ -105,7 +104,6 @@ function loadPredictiveContent() {
                     <option value="views_prediction">Views Prediction</option>
                     <option value="like_count_prediction">Like Count Prediction</option>
                     <option value="comment_count_prediction">Comment Count Prediction</option>
-                    <option value="engagement_prediction">Engagement Prediction</option>
                 </select>
             </div>
         </div>

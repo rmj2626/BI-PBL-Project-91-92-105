@@ -5,8 +5,6 @@
 # 2. Soham Joshi
 # 3. Akash Kamthe
 
-# TODO: Improve the CSS, add predictive analysis
-
 from flask import Flask, request, send_file, jsonify, render_template
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -46,10 +44,6 @@ def generate_chart():
         y_data_comments = filtered_df['commentCount']
         y_label = "Likes vs Comments"
         title = 'Likes vs Comments Over Time'
-    elif visualization_type == 'engagement':
-        y_data = filtered_df['Engagement']
-        y_label = "Engagement Level"
-        title = 'Engagement Over Time'
     elif visualization_type == 'duration':
         y_data = filtered_df['durationSecs']
         y_label = "Duration (Seconds)"
@@ -138,10 +132,6 @@ def predict_chart():
         y_data = pred_df.loc[pred_df['Metric'] == 'Total Views'].values.flatten()[1:]
         y_label = "Total Views (billions)"
         title = 'Views Prediction'
-    elif visualization_type == 'engagement_rate_prediction':
-        y_data = pred_df.loc[pred_df['Metric'] == 'Engagement Rate (%)'].values.flatten()[1:]
-        y_label = "Engagement Rate (%)"
-        title = 'Engagement Rate Prediction'
     elif visualization_type == 'like_count_prediction':
         y_data = pred_df.loc[pred_df['Metric'] == 'Average Likes per Video'].values.flatten()[1:]
         y_label = "Average Likes per Video (millions)"
