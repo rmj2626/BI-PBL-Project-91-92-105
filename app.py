@@ -1,4 +1,4 @@
-# BI PBL Mini Project
+# BI PBL Mini Project 
 # Topic: Youtube Channel Data Analytics
 # Team Members:
 # 1. Rudraksha M. J.
@@ -7,8 +7,14 @@
 
 from flask import Flask, request, send_file, jsonify, render_template
 import pandas as pd
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 import io
+from flask import Response
+
+import matplotlib
+matplotlib.use('Agg')  # Use the 'Agg' backend for rendering plots
+
+import matplotlib.pyplot as plt  # Now you can import pyplot
 
 app = Flask(__name__)
 
@@ -34,6 +40,15 @@ def generate_chart():
     # Filter the dataframe based on the year range
     filtered_df = df[(df['Video publish year'] >= from_year) & (df['Video publish year'] <= to_year)]
 
+    # Debugging: Print filtered data information
+    print(f"Requested year range: {from_year}-{to_year}")
+    print(f"Filtered data years: {filtered_df['Video publish year'].unique()}")
+    print(f"Filtered data shape: {filtered_df.shape}")
+
+    # Check if the filtered DataFrame is empty
+    if filtered_df.empty:
+        return jsonify({"error": "No data available for the selected year range. Please choose a different range."})
+
     # Map visualization type to the correct column names
     if visualization_type == 'views':
         y_data = filtered_df['Views']
@@ -53,19 +68,41 @@ def generate_chart():
         y_label = "Duration (Seconds)"
         title = 'Video Duration Over Time'
 
-    # Aggregate data year-wise
+    # Continue with data aggregation and plotting
+    filtered_df = filtered_df.copy()
     filtered_df['Year'] = filtered_df['Video publish date'].dt.year
+
     if visualization_type == 'likes_vs_comments':
         yearly_data_likes = filtered_df.groupby('Year')[y_data_likes.name].sum()
         yearly_data_comments = filtered_df.groupby('Year')[y_data_comments.name].sum()
     else:
         yearly_data = filtered_df.groupby('Year')[y_data.name].sum()
 
+    print("Data being plotted:")
+    print(filtered_df.head())
+
     # Create the plot
     if graph_type == 'pie':
         plt.figure(figsize=(10, 7))  # Larger figure size for pie charts
     else:
         plt.figure(figsize=(6.8, 3))  # 680px x 300px figure for other charts
+
+    # Helper function to format y_data for millions or billions
+    def format_y_data_for_large_numbers(y_data):
+        if y_data.max() >= 1_000_000_000:  # If max is in billions
+            y_data = y_data / 1_000_000_000  # Convert to billions
+            y_label = "Views (in Billions)"
+        elif y_data.max() >= 1_000_000:  # If max is in millions
+            y_data = y_data / 1_000_000  # Convert to millions
+            y_label = "Views (in Millions)"
+        else:
+            y_label = "Views"
+        return y_data, y_label
+
+    # Format the views data if visualization_type is 'views'
+    if visualization_type == 'views':
+        y_data, y_label = format_y_data_for_large_numbers(yearly_data)
+        title = 'Views Over Time'
 
     # Plot based on visualization type and graph type
     if visualization_type == 'likes_vs_comments':
@@ -77,22 +114,27 @@ def generate_chart():
             plt.plot(yearly_data_comments.index, yearly_data_comments, label="Comments", marker='o')
     else:
         if graph_type == 'bar':
-            plt.bar(yearly_data.index, yearly_data, color='skyblue')
+            plt.bar(yearly_data.index, y_data, color='skyblue')
         elif graph_type == 'pie':
-            plt.pie(yearly_data, labels=yearly_data.index, autopct='%1.1f%%', startangle=90)
+            plt.pie(y_data, labels=yearly_data.index, autopct='%1.1f%%', startangle=90)
             plt.axis('equal')  # Equal aspect ratio for pie chart
         else:  # default is line graph
-            plt.plot(yearly_data.index, yearly_data, marker='o')
+            plt.plot(yearly_data.index, y_data, marker='o')
 
     plt.title(title)
     plt.xlabel('Year')
     plt.ylabel(y_label)
     plt.legend()
 
+    # Set the x-axis ticks to whole years
+    years = filtered_df['Year'].unique()  # Get unique years from the filtered DataFrame
+    plt.xticks(sorted(years), labels=[str(int(year)) for year in sorted(years)])  # Sort and set as ticks
+
     # Save the plot to a bytes buffer
     img = io.BytesIO()
     plt.savefig(img, format='png', bbox_inches='tight')
     img.seek(0)
+    plt.close()
 
     # Return the image as response
     return send_file(img, mimetype='image/png')
@@ -183,6 +225,7 @@ def predict_chart():
     img = io.BytesIO()
     plt.savefig(img, format='png', bbox_inches='tight')
     img.seek(0)
+    plt.close()
 
     # Return the image as response
     return send_file(img, mimetype='image/png')
