@@ -5,9 +5,6 @@
 # 2. Soham Joshi
 # 3. Akash Kamthe
 
-# TODO: Improve the CSS, add predictive analysis
-# TODO: Modify this flask app to include /upload path
-
 from flask import Flask, request, send_file, jsonify, render_template
 import pandas as pd
 import matplotlib.pyplot as plt
