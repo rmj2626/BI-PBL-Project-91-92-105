@@ -1,0 +1,5 @@
+Algorithm,Mean Squared Error (MSE),R²,Mean Absolute Percentage Error (MAPE)
+Linear Regression,136273604155860,0.896,2441.67%
+Polynomial Regression (Degree 2),0,1.000,0.00%
+Random Forrest,76441566477546,0.942,23.39%
+Gradient Boost,35762519913962,0.973,133.42%
