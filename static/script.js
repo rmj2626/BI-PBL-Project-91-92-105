@@ -33,7 +33,28 @@ document.addEventListener('DOMContentLoaded', function() {
             predictChart(); // Generate chart on graph type selection for predictive analysis
         });
     });
+
+    // Handle change of Visualization Type dropdown
+    document.querySelector('#visual-select').addEventListener('change', function() {
+        setDefaultYearsForViewsByDay(this.value);
+    });    
 });
+
+// Set default years for "Views by Day Type" visualization
+function setDefaultYearsForViewsByDay(visualizationType) {
+    const fromSelect = document.querySelector('#from-select');
+    const toSelect = document.querySelector('#to-select');
+    
+    if (visualizationType === 'views_by_day') {
+        // Set default years when "Views by Day Type" is selected
+        fromSelect.value = '2022';
+        toSelect.value = '2024';
+    } else {
+        // Reset to empty values for other visualization types
+        fromSelect.value = '';
+        toSelect.value = '';
+    }
+}
 
 function setActiveButton(button) {
     document.querySelectorAll('.sidebar button').forEach(btn => btn.classList.remove('active'));
@@ -55,6 +76,10 @@ function loadDashboardContent() {
                     <option value="views">Views Over Time</option>
                     <option value="likes_vs_comments">Likes vs Comments</option>
                     <option value="duration">Video Duration</option>
+                    <option value="view_to_like_ratio">View-to-Like Ratio Over Time</option>
+                    <option value="tag_count">Tag Count Over Time</option>
+                    <option value="words_in_title">Words in Title Over Time</option>
+                    <option value="views_by_day">Views by Day Type</option>
                 </select>
             </div>
             <span class="time">Time Range</span>
@@ -87,6 +112,10 @@ function loadDashboardContent() {
         </div>
     `;
     document.getElementById('content').innerHTML = content;
+
+    // Set default years for "Views by Day Type" if selected
+    setDefaultYearsForViewsByDay(document.querySelector('#visual-select').value);
+    
     document.querySelector('.submit').addEventListener('click', generateChart);
 }
 
@@ -100,6 +129,7 @@ function loadPredictiveContent() {
                     <option value="views_prediction">Views Prediction</option>
                     <option value="like_count_prediction">Like Count Prediction</option>
                     <option value="comment_count_prediction">Comment Count Prediction</option>
+                    <option value="views_per_minute_prediction">Views per Minute Prediction</option>
                 </select>
             </div>
         </div>

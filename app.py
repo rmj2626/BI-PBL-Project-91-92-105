@@ -8,7 +8,6 @@
 from flask import Flask, request, send_file, jsonify, render_template
 import pandas as pd
 import io
-from flask import Response
 
 import matplotlib
 matplotlib.use('Agg')  # Use the 'Agg' backend for rendering plots
@@ -38,11 +37,6 @@ def generate_chart():
     # Filter the dataframe based on the year range
     filtered_df = df[(df['Video publish date'].dt.year >= from_year) & (df['Video publish date'].dt.year <= to_year)]
 
-    # Debugging: Print filtered data information
-    print(f"Requested year range: {from_year}-{to_year}")
-    print(f"Filtered data years: {filtered_df['Video publish date'].dt.year.unique()}")
-    print(f"Filtered data shape: {filtered_df.shape}")
-
     # Check if the filtered DataFrame is empty
     if filtered_df.empty:
         return jsonify({"error": "No data available for the selected year range. Please choose a different range."})
@@ -55,39 +49,53 @@ def generate_chart():
 
     # Map visualization type to the correct column names and aggregate data
     if visualization_type == 'views':
-        y_data = filtered_df['Views']
         y_label = "Views"
         title = 'Views Over Time'
         yearly_data = filtered_df.groupby('Year')['Views'].sum()
     elif visualization_type == 'likes_vs_comments':
-        y_data_likes = filtered_df['likeCount']
-        y_data_comments = filtered_df['commentCount']
         y_label = "Likes vs Comments"
         title = 'Likes vs Comments Over Time'
         yearly_data_likes = filtered_df.groupby('Year')['likeCount'].sum()
         yearly_data_comments = filtered_df.groupby('Year')['commentCount'].sum()
-    elif visualization_type == 'engagement':
-        y_data = filtered_df['Engagement']
-        y_label = "Engagement Level"
-        title = 'Engagement Over Time'
-        yearly_data = filtered_df.groupby('Year')['Engagement'].sum()
     elif visualization_type == 'duration':
         y_label = "Duration (Seconds)"
         title = 'Video Duration Over Time'
-        yearly_data = filtered_df.groupby('Year')['durationSecs'].mean()  # Use mean for duration
+        yearly_data = filtered_df.groupby('Year')['durationSecs'].mean()
+    elif visualization_type == 'view_to_like_ratio':
+        y_label = "View-to-Like Ratio"
+        title = 'View-to-Like Ratio Over Time'
+        yearly_data = filtered_df.groupby('Year')['View-to-Like Ratio'].mean()
+    elif visualization_type == 'tag_count':
+        y_label = "Tag Count"
+        title = 'Tag Count Over Time'
+        yearly_data = filtered_df.groupby('Year')['tagCount'].mean()
+    elif visualization_type == 'words_in_title':
+        y_label = "Number of Words in Title"
+        title = 'Words in Title Over Time'
+        yearly_data = filtered_df.groupby('Year')['noOfWordsInTitle'].mean()
+    elif visualization_type == 'views_by_day':
+        # New logic for views by day (workday vs weekend)
+        y_label = "Views"
+        title = 'Views by Day Type'
+        # Read the new CSV file for day analysis
+        day_df = pd.read_csv('day_analysis.csv')
+        # Create a bar chart for Workday vs Weekend
+        # Data is already in day_type (Workday, Weekend) and views columns
+        day_df.set_index('dayType', inplace=True)
+        yearly_data = day_df['Views']
 
-    # If yearly_data is still None, return an error
+    # Error handling for unsupported visualization type
     if yearly_data is None and visualization_type != 'likes_vs_comments':
         return jsonify({"error": "Invalid visualization type"}), 400
 
-    print("Data being plotted:")
-    print(filtered_df.head())
-
     # Create the plot
-    plt.figure(figsize=(10, 7) if graph_type == 'pie' else (6.8, 3))
+    plt.figure(figsize=(5, 5) if graph_type == 'pie' else (6.8, 3))
 
     # Plot based on visualization type and graph type
-    if visualization_type == 'likes_vs_comments':
+    if visualization_type == 'views_by_day':
+        # Generate a bar chart for the 'views_by_day' case
+        plt.bar(yearly_data.index, yearly_data.values, color='skyblue')
+    elif visualization_type == 'likes_vs_comments':
         if graph_type == 'bar':
             plt.bar(yearly_data_likes.index, yearly_data_likes, label="Likes", color='#59666F')
             plt.bar(yearly_data_comments.index, yearly_data_comments, label="Comments", bottom=yearly_data_likes, color='skyblue')
@@ -98,20 +106,21 @@ def generate_chart():
         if graph_type == 'bar':
             plt.bar(yearly_data.index, yearly_data.values, color='skyblue')
         elif graph_type == 'pie':
-            # Handle pie chart logic if needed
+            if len(yearly_data) > 10:
+                yearly_data = yearly_data[:10]
             plt.pie(yearly_data.values, labels=yearly_data.index, autopct='%1.1f%%', startangle=90)
-            plt.axis('equal')  # Equal aspect ratio for pie chart
+            plt.axis('equal')
         else:  # default is line graph
             plt.plot(yearly_data.index, yearly_data.values, marker='o')
 
+        # Set x-ticks to show whole years only for numeric year data
+        if visualization_type != 'views_by_day':
+            plt.xticks(ticks=yearly_data.index, labels=yearly_data.index.astype(int))    
+
     plt.title(title)
-    plt.xlabel('Year')
+    plt.xlabel('Day Type' if visualization_type == 'views_by_day' else 'Year')
     plt.ylabel(y_label)
     plt.legend()
-
-    # Set the x-axis ticks to whole years
-    years = filtered_df['Year'].unique()  # Get unique years from the filtered DataFrame
-    plt.xticks(sorted(years), labels=[str(int(year)) for year in sorted(years)])  # Sort and set as ticks
 
     # Save the plot to a bytes buffer
     img = io.BytesIO()
@@ -132,66 +141,41 @@ def predict_chart():
     visualization_type = data['visualizationType']
     graph_type = data['graphType']
 
-    # Debugging print to check received data
-    print(f"Received visualization_type: {visualization_type}, graph_type: {graph_type}")
-
-    # Helper function to scale large numbers for easier visualization
-    def scale_values(values):
-        scaled_values = []
-        for val in values:
-            if val >= 1_000_000_000:  # Convert billions
-                scaled_values.append(val / 1_000_000_000)
-            elif val >= 1_000_000:  # Convert millions
-                scaled_values.append(val / 1_000_000)
-            elif val >= 1_000:  # Convert thousands
-                scaled_values.append(val / 1_000)
-            else:
-                scaled_values.append(val)
-        return scaled_values
-
     # Initialize y_data variable
     y_data = None
 
     # Map visualization type to correct row in predictive analysis data
-    if visualization_type == 'subscriber_gain_prediction':
-        y_data = pred_df.loc[pred_df['Metric'] == 'Subscriber Gain'].values.flatten()[1:]
-        y_label = "Subscriber Gain (millions)"
-        title = 'Subscriber Gain Prediction'
-    elif visualization_type == 'views_prediction':
-        y_data = pred_df.loc[pred_df['Metric'] == 'Total Views'].values.flatten()[1:]
+    if visualization_type == 'views_prediction':
+        y_data = pred_df.loc[pred_df['Metric'] == 'Views'].values.flatten()[1:]
         y_label = "Total Views (billions)"
         title = 'Views Prediction'
-    elif visualization_type == 'engagement_rate_prediction':
-        y_data = pred_df.loc[pred_df['Metric'] == 'Engagement Rate (%)'].values.flatten()[1:]
-        y_label = "Engagement Rate (%)"
-        title = 'Engagement Rate Prediction'
     elif visualization_type == 'like_count_prediction':
-        y_data = pred_df.loc[pred_df['Metric'] == 'Average Likes per Video'].values.flatten()[1:]
+        y_data = pred_df.loc[pred_df['Metric'] == 'likeCount'].values.flatten()[1:]
         y_label = "Average Likes per Video (millions)"
         title = 'Like Count Prediction'
     elif visualization_type == 'comment_count_prediction':
-        y_data = pred_df.loc[pred_df['Metric'] == 'Comments per Video'].values.flatten()[1:]
+        y_data = pred_df.loc[pred_df['Metric'] == 'commentCount'].values.flatten()[1:]
         y_label = "Comments per Video (thousands)"
         title = 'Comment Count Prediction'
+    elif visualization_type == 'views_per_minute_prediction':
+        y_data = pred_df.loc[pred_df['Metric'] == 'Views per Minute'].values.flatten()[1:]
+        y_label = "Views per Minute"
+        title = 'Views per Minute Prediction'
     
-    # Check if y_data is set
-    if y_data is None:
-        return jsonify({"error": "Invalid visualization type"}), 400
+    # Error handling if y_data is not set or is empty
+    if y_data is None or len(y_data) == 0:
+        return jsonify({"error": "Invalid visualization type or missing data"}), 400
 
-    # Scale the y_data values
-    y_data = scale_values(y_data)
-
-    # Update year labels based on data
+    # Year labels based on data
     years = ['2023', '2025', '2030']
 
     # Create the plot
+    plt.figure(figsize=(5, 5) if graph_type == 'pie' else (6.8, 3))
+
     if graph_type == 'pie':
-        plt.figure(figsize=(10, 7))
         plt.pie(y_data, labels=years, autopct='%1.1f%%', startangle=90)
         plt.axis('equal')
     else:
-        plt.figure(figsize=(6.8, 3))
-
         if graph_type == 'bar':
             plt.bar(years, y_data, color='skyblue', label=y_label)
         else:  # default is line graph
@@ -210,7 +194,6 @@ def predict_chart():
 
     # Return the image as response
     return send_file(img, mimetype='image/png')
-
 
 if __name__ == '__main__':
     app.run(debug=True)
