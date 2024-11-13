@@ -113,10 +113,6 @@ def generate_chart():
         else:  # default is line graph
             plt.plot(yearly_data.index, yearly_data.values, marker='o')
 
-        # Set x-ticks to show whole years only for numeric year data
-        if visualization_type != 'views_by_day':
-            plt.xticks(ticks=yearly_data.index, labels=yearly_data.index.astype(int))    
-
     plt.title(title)
     plt.xlabel('Day Type' if visualization_type == 'views_by_day' else 'Year')
     plt.ylabel(y_label)

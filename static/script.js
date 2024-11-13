@@ -37,8 +37,30 @@ document.addEventListener('DOMContentLoaded', function() {
     // Handle change of Visualization Type dropdown
     document.querySelector('#visual-select').addEventListener('change', function() {
         setDefaultYearsForViewsByDay(this.value);
+        handleGraphTypeAccessibility(this.value);
     });    
 });
+
+// Function to enable or disable graph type buttons based on the selected visualization type
+function handleGraphTypeAccessibility(visualizationType) {
+    const lineButton = document.querySelector('.dashboard-graph .line');
+    const barButton = document.querySelector('.dashboard-graph .bar');
+    const pieButton = document.querySelector('.dashboard-graph .pie');
+
+    // Reset all buttons to be enabled
+    lineButton.classList.remove('disabled');
+    barButton.classList.remove('disabled');
+    pieButton.classList.remove('disabled');
+
+    if (visualizationType === 'views_by_day') {
+        // Disable Line Graph and Pie Chart for "Views by Day Type"
+        lineButton.classList.add('disabled');
+        pieButton.classList.add('disabled');
+    } else if (visualizationType === 'likes_vs_comments') {
+        // Disable Pie Chart for "Likes vs Comments"
+        pieButton.classList.add('disabled');
+    }
+}
 
 // Set default years for "Views by Day Type" visualization
 function setDefaultYearsForViewsByDay(visualizationType) {
@@ -115,7 +137,8 @@ function loadDashboardContent() {
 
     // Set default years for "Views by Day Type" if selected
     setDefaultYearsForViewsByDay(document.querySelector('#visual-select').value);
-    
+    handleGraphTypeAccessibility(document.querySelector('#visual-select').value);
+
     document.querySelector('.submit').addEventListener('click', generateChart);
 }
 

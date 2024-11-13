@@ -491,3 +491,8 @@ footer {
 .typeOfGraph button img {
   padding-right: 5px;
 }
+
+button.disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
