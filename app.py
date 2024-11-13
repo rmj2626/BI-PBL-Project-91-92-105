@@ -7,14 +7,12 @@
 
 from flask import Flask, request, send_file, jsonify, render_template
 import pandas as pd
-# import matplotlib.pyplot as plt
 import io
 from flask import Response
 
 import matplotlib
 matplotlib.use('Agg')  # Use the 'Agg' backend for rendering plots
-
-import matplotlib.pyplot as plt  # Now you can import pyplot
+import matplotlib.pyplot as plt
 
 app = Flask(__name__)
 
@@ -38,71 +36,55 @@ def generate_chart():
     graph_type = data['graphType']
 
     # Filter the dataframe based on the year range
-    filtered_df = df[(df['Video publish year'] >= from_year) & (df['Video publish year'] <= to_year)]
+    filtered_df = df[(df['Video publish date'].dt.year >= from_year) & (df['Video publish date'].dt.year <= to_year)]
 
     # Debugging: Print filtered data information
     print(f"Requested year range: {from_year}-{to_year}")
-    print(f"Filtered data years: {filtered_df['Video publish year'].unique()}")
+    print(f"Filtered data years: {filtered_df['Video publish date'].dt.year.unique()}")
     print(f"Filtered data shape: {filtered_df.shape}")
 
     # Check if the filtered DataFrame is empty
     if filtered_df.empty:
         return jsonify({"error": "No data available for the selected year range. Please choose a different range."})
 
-    # Map visualization type to the correct column names
+    # Add 'Year' column to the DataFrame
+    filtered_df['Year'] = filtered_df['Video publish date'].dt.year
+
+    # Initialize yearly_data for all cases
+    yearly_data = None
+
+    # Map visualization type to the correct column names and aggregate data
     if visualization_type == 'views':
         y_data = filtered_df['Views']
         y_label = "Views"
         title = 'Views Over Time'
+        yearly_data = filtered_df.groupby('Year')['Views'].sum()
     elif visualization_type == 'likes_vs_comments':
         y_data_likes = filtered_df['likeCount']
         y_data_comments = filtered_df['commentCount']
         y_label = "Likes vs Comments"
         title = 'Likes vs Comments Over Time'
+        yearly_data_likes = filtered_df.groupby('Year')['likeCount'].sum()
+        yearly_data_comments = filtered_df.groupby('Year')['commentCount'].sum()
     elif visualization_type == 'engagement':
         y_data = filtered_df['Engagement']
         y_label = "Engagement Level"
         title = 'Engagement Over Time'
+        yearly_data = filtered_df.groupby('Year')['Engagement'].sum()
     elif visualization_type == 'duration':
-        y_data = filtered_df['durationSecs']
         y_label = "Duration (Seconds)"
         title = 'Video Duration Over Time'
+        yearly_data = filtered_df.groupby('Year')['durationSecs'].mean()  # Use mean for duration
 
-    # Continue with data aggregation and plotting
-    filtered_df = filtered_df.copy()
-    filtered_df['Year'] = filtered_df['Video publish date'].dt.year
-
-    if visualization_type == 'likes_vs_comments':
-        yearly_data_likes = filtered_df.groupby('Year')[y_data_likes.name].sum()
-        yearly_data_comments = filtered_df.groupby('Year')[y_data_comments.name].sum()
-    else:
-        yearly_data = filtered_df.groupby('Year')[y_data.name].sum()
+    # If yearly_data is still None, return an error
+    if yearly_data is None and visualization_type != 'likes_vs_comments':
+        return jsonify({"error": "Invalid visualization type"}), 400
 
     print("Data being plotted:")
     print(filtered_df.head())
 
     # Create the plot
-    if graph_type == 'pie':
-        plt.figure(figsize=(10, 7))  # Larger figure size for pie charts
-    else:
-        plt.figure(figsize=(6.8, 3))  # 680px x 300px figure for other charts
-
-    # Helper function to format y_data for millions or billions
-    def format_y_data_for_large_numbers(y_data):
-        if y_data.max() >= 1_000_000_000:  # If max is in billions
-            y_data = y_data / 1_000_000_000  # Convert to billions
-            y_label = "Views (in Billions)"
-        elif y_data.max() >= 1_000_000:  # If max is in millions
-            y_data = y_data / 1_000_000  # Convert to millions
-            y_label = "Views (in Millions)"
-        else:
-            y_label = "Views"
-        return y_data, y_label
-
-    # Format the views data if visualization_type is 'views'
-    if visualization_type == 'views':
-        y_data, y_label = format_y_data_for_large_numbers(yearly_data)
-        title = 'Views Over Time'
+    plt.figure(figsize=(10, 7) if graph_type == 'pie' else (6.8, 3))
 
     # Plot based on visualization type and graph type
     if visualization_type == 'likes_vs_comments':
@@ -114,12 +96,13 @@ def generate_chart():
             plt.plot(yearly_data_comments.index, yearly_data_comments, label="Comments", marker='o')
     else:
         if graph_type == 'bar':
-            plt.bar(yearly_data.index, y_data, color='skyblue')
+            plt.bar(yearly_data.index, yearly_data.values, color='skyblue')
         elif graph_type == 'pie':
-            plt.pie(y_data, labels=yearly_data.index, autopct='%1.1f%%', startangle=90)
+            # Handle pie chart logic if needed
+            plt.pie(yearly_data.values, labels=yearly_data.index, autopct='%1.1f%%', startangle=90)
             plt.axis('equal')  # Equal aspect ratio for pie chart
         else:  # default is line graph
-            plt.plot(yearly_data.index, y_data, marker='o')
+            plt.plot(yearly_data.index, yearly_data.values, marker='o')
 
     plt.title(title)
     plt.xlabel('Year')
@@ -204,17 +187,15 @@ def predict_chart():
     # Create the plot
     if graph_type == 'pie':
         plt.figure(figsize=(10, 7))
-    else:
-        plt.figure(figsize=(6.8, 3))
-
-    # Plot based on graph type
-    if graph_type == 'bar':
-        plt.bar(years, y_data, color='skyblue', label=y_label)
-    elif graph_type == 'pie':
         plt.pie(y_data, labels=years, autopct='%1.1f%%', startangle=90)
         plt.axis('equal')
     else:
-        plt.plot(years, y_data, marker='o', label=y_label)
+        plt.figure(figsize=(6.8, 3))
+
+        if graph_type == 'bar':
+            plt.bar(years, y_data, color='skyblue', label=y_label)
+        else:  # default is line graph
+            plt.plot(years, y_data, marker='o', label=y_label)
 
     plt.title(title)
     plt.xlabel('Year')

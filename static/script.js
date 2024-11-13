@@ -107,7 +107,7 @@ function loadPredictiveContent() {
             Submit
         </button>
         <div class="graphDiv">
-            <img src="" alt="Image will be loaded below" class="graph">
+            <img src="static/loading.gif" alt="Image will be loaded below" class="graph">
         </div>
     `;
     document.getElementById('content').innerHTML = content;
