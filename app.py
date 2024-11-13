@@ -91,7 +91,7 @@ def generate_chart():
     # Create the plot
     plt.figure(figsize=(5, 5) if graph_type == 'pie' else (6.8, 3))
 
-    # Plot based on visualization type and graph type
+# Plot based on visualization type and graph type
     if visualization_type == 'views_by_day':
         # Generate a bar chart for the 'views_by_day' case
         plt.bar(yearly_data.index, yearly_data.values, color='skyblue')
@@ -112,6 +112,18 @@ def generate_chart():
             plt.axis('equal')
         else:  # default is line graph
             plt.plot(yearly_data.index, yearly_data.values, marker='o')
+
+        # Apply x-tick formatting **only if yearly_data is not None and the graph type is not a pie chart**
+        if yearly_data is not None and graph_type != 'pie' and visualization_type != 'views_by_day':
+            plt.xticks(ticks=yearly_data.index, labels=yearly_data.index.astype(int))
+
+
+    # Common settings for all plots
+    plt.title(title)
+    plt.xlabel('Day Type' if visualization_type == 'views_by_day' else 'Year')
+    plt.ylabel(y_label)
+    plt.legend()
+
 
     plt.title(title)
     plt.xlabel('Day Type' if visualization_type == 'views_by_day' else 'Year')
